@@ -5,7 +5,6 @@ from algorithm import dijkstra_path, astar_path, bfs_path
 
 app = Flask(__name__)
 
-# Lấy đồ thị giao thông cho khu vực Giảng Võ
 place_name = "Giang Vo, Ba Dinh, Hanoi, Vietnam"
 G = ox.graph_from_place(place_name, network_type="all")
 
@@ -144,7 +143,6 @@ def find_route():
         start_node = ox.distance.nearest_nodes(G, start_point[1], start_point[0])
         end_node = ox.distance.nearest_nodes(G, end_point[1], end_point[0])
 
-        # Tìm đường đi dựa trên thuật toán được chọn
         if algorithm == "dijkstra":
             route = dijkstra_path(G, start_node, end_node)
         elif algorithm == "astar":
@@ -154,10 +152,8 @@ def find_route():
         else:
             return "Thuật toán không hợp lệ."
 
-        # Tính độ dài của tuyến đường
         route_length = sum(G[u][v][0]['length'] for u, v in zip(route[:-1], route[1:]))
 
-        # Tạo bản đồ Folium
         route_map = folium.Map(location=start_point, zoom_start=14)
 
         # Thêm các điểm bắt đầu và kết thúc vào bản đồ
@@ -172,7 +168,6 @@ def find_route():
         for coord in route_coords:
             folium.CircleMarker(location=coord, radius=3, color='red', fill=True).add_to(route_map)
 
-        # Lưu bản đồ vào file HTML
         route_map.save("route_map.html")
 
         # Trả về kết quả với độ dài đường đi
@@ -197,7 +192,7 @@ def view_map():
             content = file.read()
         return content
     except Exception as e:
-        return f"Lỗi khi tải bản đồ: {e}"
+        return f"Lỗi khi load bản đồ: {e}"
 
 if __name__ == '__main__':
     app.run(debug=True)
