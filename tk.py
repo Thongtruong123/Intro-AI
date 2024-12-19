@@ -21,9 +21,23 @@ def geocode_address(address):
 @app.route('/')
 def index():
     """
-    Giao diện người dùng với form nhập 2 địa chỉ và chọn thuật toán.
+    Giao diện người dùng với form nhập 2 địa chỉ và chọn thuật toán, hiển thị bản đồ mặc định.
     """
-    html = """
+    # Tạo bản đồ mặc định của khu vực Giảng Võ
+    start_point = ox.geocode(place_name)
+    if not start_point:
+        return "Không thể tải bản đồ khu vực mặc định."
+
+    route_map = folium.Map(location=start_point, zoom_start=14)
+
+    # Thêm một số điểm vào bản đồ mặc định để người dùng nhận diện dễ hơn
+    folium.Marker(start_point, popup="Giảng Võ, Hà Nội", icon=folium.Icon(color='blue')).add_to(route_map)
+
+    # Chuyển bản đồ thành mã HTML
+    route_map_html = route_map._repr_html_()
+
+    # HTML giao diện với form nhập liệu
+    html = f"""
     <!doctype html>
     <html lang="vi">
     <head>
@@ -31,14 +45,14 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Route Finder</title>
         <style>
-            body {
+            body {{
                 font-family: Arial, sans-serif;
                 background-color: #f4f4f9;
                 margin: 0;
                 padding: 0;
                 color: #333;
-            }
-            .container {
+            }}
+            .container {{
                 width: 100%;
                 max-width: 800px;
                 margin: 50px auto;
@@ -46,35 +60,35 @@ def index():
                 background-color: #fff;
                 border-radius: 8px;
                 box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            }
-            h1 {
+            }}
+            h1 {{
                 color: #4CAF50;
                 text-align: center;
                 font-size: 2rem;
-            }
-            form {
+            }}
+            form {{
                 display: flex;
                 flex-direction: column;
                 gap: 15px;
-            }
-            label {
+            }}
+            label {{
                 font-weight: bold;
                 font-size: 1.1rem;
-            }
-            input[type="text"] {
+            }}
+            input[type="text"] {{
                 padding: 10px;
                 font-size: 1rem;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-            }
-            input[type="radio"] {
+            }}
+            input[type="radio"] {{
                 margin-right: 5px;
-            }
-            .form-actions {
+            }}
+            .form-actions {{
                 display: flex;
                 justify-content: center;
-            }
-            input[type="submit"] {
+            }}
+            input[type="submit"] {{
                 padding: 10px 20px;
                 background-color: #4CAF50;
                 color: white;
@@ -82,16 +96,16 @@ def index():
                 border-radius: 4px;
                 cursor: pointer;
                 font-size: 1rem;
-            }
-            input[type="submit"]:hover {
+            }}
+            input[type="submit"]:hover {{
                 background-color: #45a049;
-            }
-            footer {
+            }}
+            footer {{
                 text-align: center;
                 font-size: 0.9rem;
                 color: #777;
                 margin-top: 20px;
-            }
+            }}
         </style>
     </head>
     <body>
@@ -113,6 +127,9 @@ def index():
                     <input type="submit" value="Tìm đường">
                 </div>
             </form>
+
+            <h2>Đây là bản đồ mặc định của khu vực Giảng Võ:</h2>
+            {route_map_html}
         </div>
         <footer>
             <p>© 2024 Route Finder. All rights reserved.</p>
