@@ -1,14 +1,6 @@
 import networkx as nx
 import heapq
 from math import sqrt
-# def dijkstra_path(graph, start_node, end_node):
-#     """
-#     Thuật toán Dijkstra để tìm đường đi ngắn nhất.
-#     """
-#     try:
-#         return nx.shortest_path(graph, source=start_node, target=end_node, weight='length', method='dijkstra')
-#     except nx.NetworkXNoPath:
-#         raise ValueError("Không tìm được đường đi giữa hai điểm với thuật toán Dijkstra.")
 
 def dijkstra_path(graph, start_node, end_node):
     pq = []  
@@ -102,3 +94,57 @@ def bfs_path(graph, start_node, end_node):
         current = previous_nodes[current]
     return path[::-1]
 
+def dfs_path(graph, start_node, end_node):
+    stack = [start_node]
+    visited = set()
+    previous_nodes = {node: None for node in graph.nodes}
+
+    while stack:
+        current_node = stack.pop()
+
+        if current_node == end_node:
+            break
+
+        if current_node not in visited:
+            visited.add(current_node)
+
+            for neighbor in graph[current_node]:
+                if neighbor not in visited:
+                    previous_nodes[neighbor] = current_node
+                    stack.append(neighbor)
+
+    path = []
+    current = end_node
+    while current is not None:
+        path.append(current)
+        current = previous_nodes[current]
+    return path[::-1]
+
+def bellman_ford_path(graph, start_node, end_node):
+    distance = {node: float('inf') for node in graph.nodes}
+    distance[start_node] = 0
+    previous_nodes = {node: None for node in graph.nodes}
+
+    edges = []
+    for node in graph.nodes:
+        for neighbor in graph[node]:
+            weight = graph[node][neighbor]
+            edges.append((node, neighbor, weight))
+
+    for _ in range(len(graph.nodes) - 1):
+        for node, neighbor, weight in edges:
+            if distance[node] + weight < distance[neighbor]:
+                distance[neighbor] = distance[node] + weight
+                previous_nodes[neighbor] = node
+
+    # Check for negative weight cycles
+    for node, neighbor, weight in edges:
+        if distance[node] + weight < distance[neighbor]:
+            raise ValueError("Graph contains a negative-weight cycle")
+
+    path = []
+    current = end_node
+    while current is not None:
+        path.append(current)
+        current = previous_nodes[current]
+    return path[::-1]

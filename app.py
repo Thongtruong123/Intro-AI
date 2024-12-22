@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string
 import osmnx as ox
 import folium
-from algorithm import dijkstra_path, astar_path, bfs_path
+from algorithm import dijkstra_path, astar_path, bfs_path, bellman_ford_path, dfs_path
 
 app = Flask(__name__)
 
@@ -113,6 +113,8 @@ def index():
                 <input type="radio" name="algorithm" value="dijkstra" checked> Dijkstra<br>
                 <input type="radio" name="algorithm" value="astar"> A*<br>
                 <input type="radio" name="algorithm" value="bfs"> BFS<br>
+                <input type="radio" name="algorithm" value="dfs"> DFS<br>
+                <input type="radio" name="algorithm" value="bellman_ford"> Bellman_ford<br>
 
                 <div class="form-actions">
                     <input type="submit" value="Tìm đường">
@@ -153,6 +155,10 @@ def find_route():
             route = astar_path(G, start_node, end_node)
         elif algorithm == "bfs":
             route = bfs_path(G, start_node, end_node)
+        elif algorithm == "dfs":
+            route = dfs_path(G, start_node, end_node)
+        elif algorithm == "bellman_ford":
+            route = dijkstra_path(G, start_node, end_node)
         else:
             return "Thuật toán không hợp lệ."
 
