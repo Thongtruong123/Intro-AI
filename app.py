@@ -5,18 +5,14 @@ from algorithm import dijkstra_path, astar_path, bfs_path, bellman_ford_path, df
 
 app = Flask(__name__)
 
-# Tải dữ liệu đồ thị và lưu vào file graphml để sử dụng offline
 try:
     G = ox.load_graphml("giang_vo_graph.graphml")
 except FileNotFoundError:
     place_name = "Giang Vo, Ba Dinh, Hanoi, Vietnam"
-    G = ox.graph_from_place(place_name, network_type="all")
+    G = ox.graph_from_place(place_name, network_type="drive")
     ox.save_graphml(G, "giang_vo_graph.graphml")
 
 def geocode_address(address):
-    """
-    Hàm chuyển địa chỉ thành tọa độ.
-    """
     try:
         point = ox.geocode(address)
         return point
@@ -29,33 +25,40 @@ def index():
     Giao diện người dùng với form nhập 2 địa chỉ và chọn thuật toán.
     """
     html = """
-    <!doctype html>
+    <!DOCTYPE html>
     <html lang="vi">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Route Finder</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
         <style>
             body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f9;
+                font-family: 'Roboto', Arial, sans-serif;
+                background-color: #f1f3f4;
                 margin: 0;
                 padding: 0;
-                color: #333;
+                color: #202124;
             }
             .container {
-                width: 100%;
-                max-width: 800px;
-                margin: 50px auto;
+                display: flex;
+                height: 100vh;
+            }
+            .sidebar {
+                width: 400px;
+                background-color: white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                 padding: 20px;
-                background-color: #fff;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                overflow-y: auto;
+            }
+            .map-container {
+                flex-grow: 1;
+                background-color: #e0e0e0;
             }
             h1 {
-                color: #4CAF50;
-                text-align: center;
-                font-size: 2rem;
+                color: #1a73e8;
+                font-size: 24px;
+                margin-bottom: 20px;
             }
             form {
                 display: flex;
@@ -63,67 +66,100 @@ def index():
                 gap: 15px;
             }
             label {
-                font-weight: bold;
-                font-size: 1.1rem;
+                font-weight: 500;
+                color: #5f6368;
             }
             input[type="text"] {
                 padding: 10px;
-                font-size: 1rem;
-                border: 1px solid #ddd;
+                font-size: 16px;
+                border: 1px solid #dadce0;
                 border-radius: 4px;
+                outline: none;
+                transition: border-color 0.3s;
             }
-            input[type="radio"] {
-                margin-right: 5px;
+            input[type="text"]:focus {
+                border-color: #1a73e8;
             }
-            .form-actions {
+            .radio-group {
                 display: flex;
-                justify-content: center;
+                flex-wrap: wrap;
+                gap: 10px;
             }
-            input[type="submit"] {
-                padding: 10px 20px;
-                background-color: #4CAF50;
+            .radio-button {
+                display: flex;
+                align-items: center;
+                cursor: pointer;
+            }
+            .radio-button input {
+                display: none;
+            }
+            .radio-button span {
+                padding: 8px 16px;
+                background-color: #f1f3f4;
+                border-radius: 16px;
+                transition: background-color 0.3s, color 0.3s;
+            }
+            .radio-button input:checked + span {
+                background-color: #1a73e8;
+                color: white;
+            }
+            button {
+                background-color: #1a73e8;
                 color: white;
                 border: none;
+                padding: 10px 20px;
+                font-size: 16px;
                 border-radius: 4px;
                 cursor: pointer;
-                font-size: 1rem;
+                transition: background-color 0.3s;
             }
-            input[type="submit"]:hover {
-                background-color: #45a049;
-            }
-            footer {
-                text-align: center;
-                font-size: 0.9rem;
-                color: #777;
-                margin-top: 20px;
+            button:hover {
+                background-color: #1765cc;
             }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>Nhập địa chỉ để tìm đường đi</h1>
-            <form action="/find_route" method="post">
-                <label for="start_address">Địa chỉ bắt đầu:</label>
-                <input type="text" name="start_address" id="start_address" required><br>
+            <div class="sidebar">
+                <h1>Route Finder</h1>
+                <form action="/find_route" method="post">
+                    <label for="start_address">Địa chỉ bắt đầu:</label>
+                    <input type="text" name="start_address" id="start_address" required placeholder="Nhập địa chỉ bắt đầu">
 
-                <label for="end_address">Địa chỉ kết thúc:</label>
-                <input type="text" name="end_address" id="end_address" required><br>
+                    <label for="end_address">Địa chỉ kết thúc:</label>
+                    <input type="text" name="end_address" id="end_address" required placeholder="Nhập địa chỉ kết thúc">
 
-                <label>Chọn thuật toán:</label>
-                <input type="radio" name="algorithm" value="dijkstra" checked> Dijkstra<br>
-                <input type="radio" name="algorithm" value="astar"> A*<br>
-                <input type="radio" name="algorithm" value="bfs"> BFS<br>
-                <input type="radio" name="algorithm" value="dfs"> DFS<br>
-                <input type="radio" name="algorithm" value="bellman_ford"> Bellman_ford<br>
+                    <label>Chọn thuật toán:</label>
+                    <div class="radio-group">
+                        <label class="radio-button">
+                            <input type="radio" name="algorithm" value="dijkstra" checked>
+                            <span>Dijkstra</span>
+                        </label>
+                        <label class="radio-button">
+                            <input type="radio" name="algorithm" value="astar">
+                            <span>A*</span>
+                        </label>
+                        <label class="radio-button">
+                            <input type="radio" name="algorithm" value="bfs">
+                            <span>BFS</span>
+                        </label>
+                        <label class="radio-button">
+                            <input type="radio" name="algorithm" value="dfs">
+                            <span>DFS</span>
+                        </label>
+                        <label class="radio-button">
+                            <input type="radio" name="algorithm" value="bellman_ford">
+                            <span>Bellman-Ford</span>
+                        </label>
+                    </div>
 
-                <div class="form-actions">
-                    <input type="submit" value="Tìm đường">
-                </div>
-            </form>
+                    <button type="submit">Tìm đường</button>
+                </form>
+            </div>
+            <div class="map-container" id="map">
+                
+            </div>
         </div>
-        <footer>
-            <p>© 2024 Route Finder. All rights reserved.</p>
-        </footer>
     </body>
     </html>
     """
@@ -142,8 +178,10 @@ def find_route():
     start_point = geocode_address(start_address)
     end_point = geocode_address(end_address)
 
-    if not start_point or not end_point:
-        return "Không thể tìm tọa độ cho một trong hai địa chỉ. Vui lòng thử lại."
+    if not start_point :
+        return "Không thể tìm tọa độ cho  địa chỉ {start_point}. Vui lòng thử lại."
+    if not end_point :
+        return "Không thể tìm tọa độ cho  địa chỉ {end_point}. Vui lòng thử lại."
 
     try:
         start_node = ox.distance.nearest_nodes(G, start_point[1], start_point[0])
@@ -158,7 +196,7 @@ def find_route():
         elif algorithm == "dfs":
             route = dfs_path(G, start_node, end_node)
         elif algorithm == "bellman_ford":
-            route = dijkstra_path(G, start_node, end_node)
+            route = bellman_ford_path(G, start_node, end_node)
         else:
             return "Thuật toán không hợp lệ."
 
@@ -168,28 +206,82 @@ def find_route():
 
         # Thêm các điểm bắt đầu và kết thúc vào bản đồ
         folium.Marker(start_point, popup="Start: {}".format(start_address), icon=folium.Icon(color='green')).add_to(route_map)
-        folium.Marker(end_point, popup="End: {}".format(end_address), icon=folium.Icon(color='green')).add_to(route_map)
+        folium.Marker(end_point, popup="End: {}".format(end_address), icon=folium.Icon(color='red')).add_to(route_map)
 
         # Thêm tuyến đường vào bản đồ
         route_coords = [(G.nodes[node]['y'], G.nodes[node]['x']) for node in route]
-        folium.PolyLine(route_coords, color="blue", weight=2.5, opacity=1).add_to(route_map)
-
-        # Đánh dấu tất cả các điểm trên tuyến đường
-        for coord in route_coords:
-            folium.CircleMarker(location=coord, radius=3, color='red', fill=True).add_to(route_map)
+        folium.PolyLine(route_coords, color="#1a73e8", weight=5, opacity=0.7).add_to(route_map)
 
         # Lưu bản đồ vào file HTML
         route_map.save("route_map.html")
 
         # Trả về kết quả với độ dài đường đi và hiển thị trực tiếp bản đồ
         return render_template_string("""
-        <h1>Kết quả:</h1>
-        <p>Đường đi từ: {} đến {}</p>
-        <p>Thuật toán: {}</p>
-        <p>Độ dài tuyến đường: {:.2f} km</p>
-        <h3>Đây là bản đồ tuyến đường:</h3>
-        <iframe src="/view_map" width="100%" height="600px"></iframe>
-        """.format(start_address, end_address, algorithm.upper(), route_length / 1000))
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Route Result</title>
+            <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+            <style>
+                body {
+                    font-family: 'Roboto', Arial, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    color: #202124;
+                    display: flex;
+                    height: 100vh;
+                }
+                .sidebar {
+                    width: 300px;
+                    background-color: white;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    padding: 20px;
+                    overflow-y: auto;
+                }
+                .map-container {
+                    flex-grow: 1;
+                }
+                h1 {
+                    color: #1a73e8;
+                    font-size: 24px;
+                    margin-bottom: 20px;
+                }
+                p {
+                    margin-bottom: 10px;
+                }
+                .result-item {
+                    background-color: #f1f3f4;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                }
+                iframe {
+                    border: none;
+                    width: 100%;
+                    height: 100%;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="sidebar">
+                <h1>Kết quả tìm đường</h1>
+                <div class="result-item">
+                    <p><strong>Từ:</strong> {{ start_address }}</p>
+                    <p><strong>Đến:</strong> {{ end_address }}</p>
+                </div>
+                <div class="result-item">
+                    <p><strong>Thuật toán:</strong> {{ algorithm.upper() }}</p>
+                    <p><strong>Độ dài tuyến đường:</strong> {{ "%.2f"|format(route_length / 1000) }} km</p>
+                </div>
+            </div>
+            <div class="map-container">
+                <iframe src="/view_map"></iframe>
+            </div>
+        </body>
+        </html>
+        """, start_address=start_address, end_address=end_address, algorithm=algorithm, route_length=route_length)
 
     except Exception as e:
         return f"Lỗi khi tìm đường: {e}"

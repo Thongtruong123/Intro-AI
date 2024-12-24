@@ -120,31 +120,7 @@ def dfs_path(graph, start_node, end_node):
         current = previous_nodes[current]
     return path[::-1]
 
+import heapq
 def bellman_ford_path(graph, start_node, end_node):
-    distance = {node: float('inf') for node in graph.nodes}
-    distance[start_node] = 0
-    previous_nodes = {node: None for node in graph.nodes}
-
-    edges = []
-    for node in graph.nodes:
-        for neighbor in graph[node]:
-            weight = graph[node][neighbor]
-            edges.append((node, neighbor, weight))
-
-    for _ in range(len(graph.nodes) - 1):
-        for node, neighbor, weight in edges:
-            if distance[node] + weight < distance[neighbor]:
-                distance[neighbor] = distance[node] + weight
-                previous_nodes[neighbor] = node
-
-    # Check for negative weight cycles
-    for node, neighbor, weight in edges:
-        if distance[node] + weight < distance[neighbor]:
-            raise ValueError("Graph contains a negative-weight cycle")
-
-    path = []
-    current = end_node
-    while current is not None:
-        path.append(current)
-        current = previous_nodes[current]
-    return path[::-1]
+    path = nx.bellman_ford_path(graph, start_node, end_node, weight='length')
+    return path
