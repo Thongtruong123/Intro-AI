@@ -157,8 +157,9 @@ def index():
                 </form>
             </div>
             <div class="map-container" id="map">
-                
+                <iframe src="{{ url_for('static', filename='giang_vo_map.html') }}" width="100%" height="600px" style="border:none;"></iframe>
             </div>
+
         </div>
     </body>
     </html>
@@ -178,10 +179,6 @@ def find_route():
     start_point = geocode_address(start_address)
     end_point = geocode_address(end_address)
 
-    if not start_point :
-        return "Không thể tìm tọa độ cho  địa chỉ {start_point}. Vui lòng thử lại."
-    if not end_point :
-        return "Không thể tìm tọa độ cho  địa chỉ {end_point}. Vui lòng thử lại."
     nodes = list(G.nodes(data=True))
     latitudes = [data['y'] for _, data in nodes] 
     longitudes = [data['x'] for _, data in nodes]  
