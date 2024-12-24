@@ -217,6 +217,14 @@ def find_route():
         folium.Marker(end_point, popup="End: {}".format(end_address), icon=folium.Icon(color='red')).add_to(route_map)
 
 
+        start_node_coords = (G.nodes[start_node]['y'], G.nodes[start_node]['x'])
+        folium.PolyLine([start_point, start_node_coords], color='#1a73e8', weight=3, opacity=0.6, dash_array='5,5').add_to(route_map)
+
+
+        end_node_coords = (G.nodes[end_node]['y'], G.nodes[end_node]['x'])
+        folium.PolyLine([end_point, end_node_coords], color='#1a73e8', weight=3, opacity=0.6, dash_array='5,5').add_to(route_map)
+
+    
         route_coords = [(G.nodes[node]['y'], G.nodes[node]['x']) for node in route]
         folium.PolyLine(route_coords, color="#1a73e8", weight=5, opacity=0.7).add_to(route_map)
 
