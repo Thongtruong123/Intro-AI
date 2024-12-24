@@ -182,7 +182,16 @@ def find_route():
         return "Không thể tìm tọa độ cho  địa chỉ {start_point}. Vui lòng thử lại."
     if not end_point :
         return "Không thể tìm tọa độ cho  địa chỉ {end_point}. Vui lòng thử lại."
+    nodes = list(G.nodes(data=True))
+    latitudes = [data['y'] for _, data in nodes] 
+    longitudes = [data['x'] for _, data in nodes]  
 
+    min_lat, max_lat = min(latitudes), max(latitudes)
+    min_lon, max_lon = min(longitudes), max(longitudes)
+    if not (min_lat <= start_point[0] <= max_lat and min_lon <= start_point[1] <= max_lon):
+        return f"Địa chỉ bắt đầu {start_address} nằm ngoài khu vực đồ thị."
+    if not (min_lat <= end_point[0] <= max_lat and min_lon <= end_point[1] <= max_lon):
+        return f"Địa chỉ kết thúc {end_address} nằm ngoài khu vực đồ thị."
     try:
         start_node = ox.distance.nearest_nodes(G, start_point[1], start_point[0])
         end_node = ox.distance.nearest_nodes(G, end_point[1], end_point[0])
@@ -204,18 +213,17 @@ def find_route():
 
         route_map = folium.Map(location=start_point, zoom_start=14)
 
-        # Thêm các điểm bắt đầu và kết thúc vào bản đồ
         folium.Marker(start_point, popup="Start: {}".format(start_address), icon=folium.Icon(color='green')).add_to(route_map)
         folium.Marker(end_point, popup="End: {}".format(end_address), icon=folium.Icon(color='red')).add_to(route_map)
 
-        # Thêm tuyến đường vào bản đồ
+
         route_coords = [(G.nodes[node]['y'], G.nodes[node]['x']) for node in route]
         folium.PolyLine(route_coords, color="#1a73e8", weight=5, opacity=0.7).add_to(route_map)
 
-        # Lưu bản đồ vào file HTML
+    
         route_map.save("route_map.html")
 
-        # Trả về kết quả với độ dài đường đi và hiển thị trực tiếp bản đồ
+
         return render_template_string("""
         <!DOCTYPE html>
         <html lang="vi">
@@ -276,8 +284,8 @@ def find_route():
                     <p><strong>Độ dài tuyến đường:</strong> {{ "%.2f"|format(route_length / 1000) }} km</p>
                 </div>
             </div>
-            <div class="map-container">
-                <iframe src="/view_map"></iframe>
+            <div class="map-container" id = "map">
+                # <iframe src="/view_map"></iframe>
             </div>
         </body>
         </html>

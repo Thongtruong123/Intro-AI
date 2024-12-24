@@ -250,7 +250,7 @@
     <edge source="309327676" target="106106168" id="0">
       <data key="d7">[707305432, 1240355962, 1177187695]</data>
       <data key="d8">secondary</data>
-      <data key="d14">['3', '2']</data>
+      <data key="d14">['2', '3']</data>
       <data key="d9">Phố Kim Mã</data>
       <data key="d10">True</data>
       <data key="d11">False</data>
@@ -350,7 +350,7 @@
       <data key="d12">104.09964895356687</data>
       <data key="d13">LINESTRING (105.8188734 21.0294725, 105.819 21.0294888, 105.8195743 21.0295631, 105.8198669 21.029601)</data>
     </edge>
-    <data key="d0">2024-12-24 09:45:41</data>
+    <data key="d0">2024-12-24 10:21:16</data>
     <data key="d1">OSMnx 2.0.0</data>
     <data key="d2">epsg:4326</data>
     <data key="d3">True</data>
