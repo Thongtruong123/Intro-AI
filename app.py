@@ -13,6 +13,7 @@ graph_file = 'giang_vo_graph.graphml'
 
 # Check if the graph file exists
 graph = ox.load_graphml(graph_file)
+
 # Initialize global variables
 image_path = "image.png"
 
@@ -21,7 +22,7 @@ class MapApp:
     def __init__(self, root):
         super().__init__()
         self.root = root
-        self.root.title("Shortest Path Finder")
+        self.root.title("Tìm đường đi: phường Giảng Võ")
         self.root.state("zoomed") 
         self.selected_points = []
         self.start_node = None
@@ -37,64 +38,76 @@ class MapApp:
             "Bellman-Ford": "brown",
         }
         self.route_info = []
+
         # Main frame
         self.main_frame = tk.Frame(root)
-        self.main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.main_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
         # Create matplotlib figure
         self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.canvas = FigureCanvasTkAgg(self.fig, master=root)
+
         # Sidebar for buttons
         self.sidebar = tk.Frame(root)
         self.sidebar.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=10)
-        # Create a label to show node selection
-        self.info_label = tk.Label(self.sidebar, text="Select two points on the map", font=("Arial", 14))
-        self.info_label.pack(pady=10)
-        # Drop bar menu for selecting algorithms
-        self.algorithm_label = tk.Label(self.sidebar, text="Select Algorithm", font=("Arial", 14))
+        
+        # Algorithm selection with radio buttons
+        self.algorithm_label = tk.Label(self.sidebar, text="Chọn thuật toán", font=("Helvetica", 18, "bold"))
         self.algorithm_label.pack(pady = 5)
-        
-        self.algorithm_var = tk.StringVar(self.sidebar)
-        self.algorithm_var.set(self.selected_algorithm)
-        self.sidebar.option_add("*TMenubutton*Font", ("Arial", 14))
-        self.algorithm_dropdown = tk.OptionMenu(self.sidebar, self.algorithm_var, "A*", "BFS", "DFS", "Dijkstra", "Bellman-Ford", command = self.change_algorithm)
-        self.algorithm_dropdown.pack(pady = 5, fill=tk.X)
-        # Create buttons
-        self.quit_button = tk.Button(self.sidebar, text="Exit", command=self.root.quit, bg = "red", fg = "white", font = ("Arial", 14))
-        self.quit_button.pack(side=tk.BOTTOM, pady = 5, fill=tk.X)
-        self.reset_button = tk.Button(self.sidebar, text="Reset", command=self.reset_selection, font= ("Arial", 14))
-        self.reset_button.pack(fill=tk.X, pady = 5, side = tk.BOTTOM)
-        self.find_button = tk.Button(self.sidebar, text="Find Path", command=self.calculate_route, font= ("Arial", 14))
-        self.find_button.pack(fill=tk.X, pady=5)
-        self.show_all_node = tk.Button(self.sidebar, text="Show All Nodes, Path", command=self.show_all_nodes, font= ("Arial", 14))
-        self.show_all_node.pack(fill= tk.X, pady=5)
-        # Embed the canvas in the GUI
-        
-        self.info_frame = tk.Frame(self.main_frame)
-        self.info_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
 
-        self.route_info_label = tk.Label(self.info_frame, text="Route Information", font=("Arial", 12, "bold"))
+        self.algorithm_var = tk.StringVar(value="A*")
+        self.algorithm_buttons = {}
+        for algorithm in ["A*", "BFS", "DFS", "Dijkstra", "Bellman-Ford"]:
+            button = tk.Radiobutton(self.sidebar, text=algorithm, variable=self.algorithm_var, value=algorithm, command=self.change_algorithm,
+                                    font=("Helvetica", 16), padx=10, pady=5)  
+            button.pack(anchor="w", pady=2)
+            self.algorithm_buttons[algorithm] = button
+
+        
+        # Create buttons
+        self.quit_button = tk.Button(self.sidebar, text="Thoát", command=self.root.quit, bg = "red", fg = "white", font = ("Helvetica", 16))
+        self.quit_button.pack(side=tk.BOTTOM, pady = 5, fill=tk.X)
+        
+        self.reset_button = tk.Button(self.sidebar, text="Tái lập", command=self.reset_selection, font= ("Helvetica", 16))
+        self.reset_button.pack(fill=tk.X, pady = 5, side = tk.BOTTOM)
+        
+        self.find_button = tk.Button(self.sidebar, text="Tìm đường", command=self.calculate_route, font= ("Helvetica", 16))
+        self.find_button.pack(fill=tk.X, pady=5)
+        
+        self.show_all_node = tk.Button(self.sidebar, text="Hiện đồ thị", command=self.show_all_nodes, font= ("Helvetica", 16))
+        self.show_all_node.pack(fill= tk.X, pady=5)
+
+        # Move the route info frame up to be above the map
+        self.info_frame = tk.Frame(self.main_frame)
+        self.info_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+
+        self.route_info_label = tk.Label(self.info_frame, text="Thông tin đường đi", font=("Helvetica", 18, "bold"))
         self.route_info_label.pack(pady=5)
 
-        self.route_info_text = tk.Text(self.info_frame, height=5, font=("Arial", 12))
+        self.route_info_text = tk.Text(self.info_frame, height=5, font=("Helvetica", 18))
         self.route_info_text.pack(fill=tk.X, padx=5)
         self.route_info_text.config(state=tk.DISABLED)
-        # Connect matplotlib events to Tkinter
+
+        # Embed the canvas in the GUI
         self.canvas_widget = self.canvas.get_tk_widget()
-        self.canvas_widget.pack(in_= self.main_frame,side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.canvas_widget.pack(in_= self.main_frame, side=tk.TOP, fill=tk.BOTH, expand=True)
         self.fig.canvas.mpl_connect("button_press_event", self.on_click)
         self.plot_graph()
         self.root.mainloop()
+
     def show_all_nodes(self):
         """Show all nodes and edges in the graph."""
         self.ax.clear()
         self.ax.imshow(self.background_image, extent=[105.8112969, 105.8247374, 21.0234381, 21.0311603], aspect='auto', zorder=0)
         ox.plot_graph(graph, ax=self.ax, show=False, close=False, bgcolor="lightgray", edge_color='blue', node_size=30, node_color='red', edge_linewidth=2)
         self.canvas.draw()
-    def change_algorithm(self, algorithm):
+
+    def change_algorithm(self):
         """Change the selected algorithm."""
         previous_algorithm = self.selected_algorithm
-        self.selected_algorithm = algorithm
-        messagebox.showinfo("Algorithm Changed", f"Algorithm changed from {previous_algorithm} to {algorithm}")
+        self.selected_algorithm = self.algorithm_var.get()
+        messagebox.showinfo("Thay đổi thuật toán", f"Thuật toán đã được đặt thành {self.selected_algorithm}")
+
     def plot_graph(self):
         """Plot the graph in the matplotlib figure."""
         self.ax.clear()
@@ -145,7 +158,7 @@ class MapApp:
     def calculate_route(self):
         """Calculate and display the shortest route."""
         if len(self.selected_points) != 2:
-            messagebox.showwarning("Selection Error", "Please select two points before calculating.")
+            messagebox.showwarning("Lỗi", "Hãy chọn 2 điểm.")
             return
         if self.selected_algorithm == "DFS" or self.selected_algorithm == "BFS":
             start,_ = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k=1, heuristic= heuristic)
@@ -157,11 +170,11 @@ class MapApp:
             else:
                 path, _ = bfs(graph, self.start_node, self.end_node)
             if path is None:
-                messagebox.showwarning("No Path", "No path found between the selected points.")
+                messagebox.showwarning("Không tìm thấy", "Không có đường đi giữa 2 điểm được chọn.")
                 return
             self.routes[self.selected_algorithm] = path
             min_dis = sum(graph[path[i]][path[i + 1]][0].get('length') for i in range(len(path) - 1))
-            self.route_info.append(f"Algorithm: {self.selected_algorithm}, Distance: {min_dis} meters")
+            self.route_info.append(f"Thuật toán: {self.selected_algorithm}, độ dài đường đi: {round(min_dis)} mét")
             self.route_info_text.config(state=tk.NORMAL)
             self.route_info_text.delete(1.0, tk.END)
             self.route_info_text.insert(tk.END, "\n".join(self.route_info))
@@ -188,7 +201,7 @@ class MapApp:
                             min_path = path
                             check = True
                 if not check:
-                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    messagebox.showwarning("Không tìm thấy", "Không có đường đi giữa 2 điểm được chọn.")
                     return
             elif self.selected_algorithm == "Dijkstra":
                 for id1, i in enumerate(near_start):
@@ -203,7 +216,7 @@ class MapApp:
                             min_path = path
                             check = True
                 if not check:
-                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    messagebox.showwarning("Không tìm thấy", "Không có đường đi giữa 2 điểm được chọn.")
                     return
             elif self.selected_algorithm == "Bellman-Ford":
                 for id1, i in enumerate(near_start):
@@ -218,31 +231,32 @@ class MapApp:
                             min_path = path
                             check = True
                 if not check:
-                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    messagebox.showwarning("Không tìm thấy", "Không có đường đi giữa 2 điểm được chọn.")
                     return
             self.start_node = min_i
             self.end_node = min_j
             self.routes[self.selected_algorithm] = min_path
-            self.route_info.append(f"Algorithm: {self.selected_algorithm}, Distance: {dis_min} meters")
+            self.route_info.append(f"Thuật toán: {self.selected_algorithm}, độ dài đường đi: {round(dis_min)} mét")
             self.route_info_text.config(state=tk.NORMAL)
             self.route_info_text.delete(1.0, tk.END)
             self.route_info_text.insert(tk.END, "\n".join(self.route_info))
             self.route_info_text.config(state=tk.DISABLED)
             self.plot_graph()
+
     def reset_selection(self):
-        """Reset the map and clear selections."""
+        """Reset all selections."""
         self.selected_points = []
-        self.start_node = None
-        self.end_node = None
         self.routes = {}
         self.route_info = []
-        self.info_label.config(text="Select two points on the map")
+        self.start_node = None
+        self.end_node = None
         self.route_info_text.config(state=tk.NORMAL)
         self.route_info_text.delete(1.0, tk.END)
         self.route_info_text.config(state=tk.DISABLED)
-        self.plot_graph()  # Redraw the map without the route
+        self.plot_graph()
+        print("Khôi phục trạng thái ban đầu thành công.")
 
-
-# Step 3: Run the application
-root = tk.Tk()
-app = MapApp(root)
+# Step 4: Initialize and run application
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = MapApp(root)
