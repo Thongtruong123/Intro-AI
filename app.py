@@ -178,7 +178,7 @@ class MapApp:
             if self.selected_algorithm == "A*":
                 for id1, i in enumerate(near_start):
                     for id2, j in enumerate(near_end):
-                        path, dis = a_star(graph, i, j, heuristic= a_star.heuristic)
+                        path, dis = a_star(graph, i, j, heuristic= heuristic)
                         if path is None:
                             continue
                         dis += (distance_start[id1] + distance_end[id2])
