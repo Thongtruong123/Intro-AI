@@ -3,7 +3,7 @@ import numpy as np
 import networkx as nx
 import heapq
 import itertools
-from math import radians, cos, sin, asin, sqrt
+
 import json
 import numpy as np 
 def bellman_ford(graph, start_node, end_node):
@@ -14,20 +14,13 @@ def bellman_ford(graph, start_node, end_node):
     for _ in range(len(graph.nodes)-1):
         for u in graph.nodes:
             for v in graph.neighbors(u):
-                weight = graph[u][v].get('length', 1)
+                data = graph[u][v][0]
+                weight = data.get('length')
                 if distance[u] != float('inf') and distance[u] + weight < distance[v]:
                     distance[v] = distance[u] + weight
                     predecessor[v] = u
-
-    for u in graph.nodes:
-        for v in graph.neighbors(u):
-            weight = graph[u][v].get('length', 1)
-            if distance[u] != float('inf') and distance[u] + weight < distance[v]:
-                raise ValueError("Graph contains a negative-weight cycle")
-
     if distance[end_node] == float('inf'):
         return None, None
-
     path = []
     current_node = end_node
     while current_node is not None:
