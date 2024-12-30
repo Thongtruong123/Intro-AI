@@ -7,7 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from matplotlib.lines import Line2D
-from algorithm import a_star, bfs, dfs, dijkstra, nearest_node, heuristic, bellman_ford
+from algorithm import a_star, bfs, dfs, dijkstra, nearest_node, heuristic, bellman_ford, heuristic_node
 place_name = "Giang Vo, Ba Dinh, Hanoi, Vietnam"
 graph_file = 'giang_vo_graph.graphml'
 
@@ -148,8 +148,8 @@ class MapApp:
             messagebox.showwarning("Selection Error", "Please select two points before calculating.")
             return
         if self.selected_algorithm == "DFS" or self.selected_algorithm == "BFS":
-            start,_ = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k=1, heuristic= heuristic)
-            end,_ = nearest_node(graph, [self.selected_points[1][0], self.selected_points[1][1]], k=1, heuristic= heuristic)
+            start,_ = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k=1, heuristic= heuristic_node)
+            end,_ = nearest_node(graph, [self.selected_points[1][0], self.selected_points[1][1]], k=1, heuristic= heuristic_node)
             self.start_node = start[0]
             self.end_node = end[0]
             if self.selected_algorithm == "DFS":
@@ -169,8 +169,8 @@ class MapApp:
             self.plot_graph()
             return
         else:
-            near_start, distance_start = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k= 3, heuristic= heuristic)
-            near_end, distance_end = nearest_node(graph, [self.selected_points[1][0], self.selected_points[1][1]], k= 3, heuristic= heuristic)
+            near_start, distance_start = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k= 3, heuristic= heuristic_node)
+            near_end, distance_end = nearest_node(graph, [self.selected_points[1][0], self.selected_points[1][1]], k= 3, heuristic= heuristic_node)
             min_i, min_j = None, None
             dis_min = float('inf')
             min_path = None
@@ -218,7 +218,7 @@ class MapApp:
                             min_path = path
                             check = True
                 if not check:
-                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    messagebox.showwarning("Không có đường đi", "Không có đường đi giữa 2 điểm được chọn.")
                     return
             self.start_node = min_i
             self.end_node = min_j
