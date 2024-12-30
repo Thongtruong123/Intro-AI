@@ -1,15 +1,13 @@
 import osmnx as ox
-import folium
-place_name = "Giang Vo, Ba Dinh, Hanoi, Vietnam"
 
-G = ox.graph_from_place(place_name, network_type="all")
+north = 21.0311603
+south = 21.0234381
+east = 105.8247374
+west = 105.8112969
 
-center = [G.nodes[node]['y'] for node in G.nodes()][0], [G.nodes[node]['x'] for node in G.nodes()][0]
-m = folium.Map(location=center, zoom_start=14)
+bbox = (north, south, east, west)
 
-for node in G.nodes:
-    lat = G.nodes[node]['y']
-    lon = G.nodes[node]['x']
-    folium.Marker([lat, lon], popup=f'Node {node}').add_to(m)
+G = ox.graph_from_bbox(bbox, network_type='all')
+ox.save_graphml(G, filepath='giang_vo_ba_dinh_graph.graphml')
 
-m.save("static/giang_vo_map.html")
+print("Tệp GraphML đã được lưu thành công.")

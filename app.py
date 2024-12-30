@@ -1,315 +1,249 @@
-from flask import Flask, request, jsonify, render_template_string
+import tkinter as tk
+from tkinter import *
+from tkinter import messagebox
 import osmnx as ox
-import folium
-from algorithm import dijkstra_path, astar_path, bfs_path, bellman_ford_path, dfs_path
+import networkx as nx
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from matplotlib.lines import Line2D
+from algorithm import a_star, bfs, dfs, dijkstra, nearest_node, heuristic, bellman_ford
+place_name = "Giang Vo, Ba Dinh, Hanoi, Vietnam"
+graph_file = 'giang_vo_graph.graphml'
 
-app = Flask(__name__)
+# Check if the graph file exists
+graph = ox.load_graphml(graph_file)
+# Initialize global variables
+image_path = "image.png"
 
-try:
-    G = ox.load_graphml("giang_vo_graph.graphml")
-except FileNotFoundError:
-    place_name = "Giang Vo, Ba Dinh, Hanoi, Vietnam"
-    G = ox.graph_from_place(place_name, network_type="drive")
-    ox.save_graphml(G, "giang_vo_graph.graphml")
+# Step 2: Define GUI application
+class MapApp:
+    def __init__(self, root):
+        super().__init__()
+        self.root = root
+        self.root.title("Shortest Path Finder")
+        self.root.state("zoomed") 
+        self.selected_points = []
+        self.start_node = None
+        self.end_node = None
+        self.routes = {}
+        self.selected_algorithm = "A*"
+        self.background_image = mpimg.imread(image_path)
+        self.algorithm_color = {
+            "A*": "blue",
+            "BFS": "green",
+            "DFS": "red",
+            "Dijkstra": "purple",
+            "Bellman-Ford": "brown",
+        }
+        self.route_info = []
+        # Main frame
+        self.main_frame = tk.Frame(root)
+        self.main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Create matplotlib figure
+        self.fig, self.ax = plt.subplots(figsize=(10, 10))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=root)
+        # Sidebar for buttons
+        self.sidebar = tk.Frame(root)
+        self.sidebar.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=10)
+        # Create a label to show node selection
+        self.info_label = tk.Label(self.sidebar, text="Select two points on the map", font=("Arial", 14))
+        self.info_label.pack(pady=10)
+        # Drop bar menu for selecting algorithms
+        self.algorithm_label = tk.Label(self.sidebar, text="Select Algorithm", font=("Arial", 14))
+        self.algorithm_label.pack(pady = 5)
+        
+        self.algorithm_var = tk.StringVar(self.sidebar)
+        self.algorithm_var.set(self.selected_algorithm)
+        self.sidebar.option_add("*TMenubutton*Font", ("Arial", 14))
+        self.algorithm_dropdown = tk.OptionMenu(self.sidebar, self.algorithm_var, "A*", "BFS", "DFS", "Dijkstra", "Greedy", "SPFA", command = self.change_algorithm)
+        self.algorithm_dropdown.pack(pady = 5, fill=tk.X)
+        # Create buttons
+        self.quit_button = tk.Button(self.sidebar, text="Exit", command=self.root.quit, bg = "red", fg = "white", font = ("Arial", 14))
+        self.quit_button.pack(side=tk.BOTTOM, pady = 5, fill=tk.X)
+        self.reset_button = tk.Button(self.sidebar, text="Reset", command=self.reset_selection, font= ("Arial", 14))
+        self.reset_button.pack(fill=tk.X, pady = 5, side = tk.BOTTOM)
+        self.find_button = tk.Button(self.sidebar, text="Find Path", command=self.calculate_route, font= ("Arial", 14))
+        self.find_button.pack(fill=tk.X, pady=5)
+        self.show_all_node = tk.Button(self.sidebar, text="Show All Nodes, Path", command=self.show_all_nodes, font= ("Arial", 14))
+        self.show_all_node.pack(fill= tk.X, pady=5)
+        # Embed the canvas in the GUI
+        
+        self.info_frame = tk.Frame(self.main_frame)
+        self.info_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=5)
 
-def geocode_address(address):
-    try:
-        point = ox.geocode(address)
-        return point
-    except Exception as e:
-        return None
+        self.route_info_label = tk.Label(self.info_frame, text="Route Information", font=("Arial", 12, "bold"))
+        self.route_info_label.pack(pady=5)
 
-@app.route('/')
-def index():
-    """
-    Giao diện người dùng với form nhập 2 địa chỉ và chọn thuật toán.
-    """
-    html = """
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Route Finder</title>
-        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-        <style>
-            body {
-                font-family: 'Roboto', Arial, sans-serif;
-                background-color: #f1f3f4;
-                margin: 0;
-                padding: 0;
-                color: #202124;
-            }
-            .container {
-                display: flex;
-                height: 100vh;
-            }
-            .sidebar {
-                width: 400px;
-                background-color: white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                padding: 20px;
-                overflow-y: auto;
-            }
-            .map-container {
-                flex-grow: 1;
-                background-color: #e0e0e0;
-            }
-            h1 {
-                color: #1a73e8;
-                font-size: 24px;
-                margin-bottom: 20px;
-            }
-            form {
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-            }
-            label {
-                font-weight: 500;
-                color: #5f6368;
-            }
-            input[type="text"] {
-                padding: 10px;
-                font-size: 16px;
-                border: 1px solid #dadce0;
-                border-radius: 4px;
-                outline: none;
-                transition: border-color 0.3s;
-            }
-            input[type="text"]:focus {
-                border-color: #1a73e8;
-            }
-            .radio-group {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-            .radio-button {
-                display: flex;
-                align-items: center;
-                cursor: pointer;
-            }
-            .radio-button input {
-                display: none;
-            }
-            .radio-button span {
-                padding: 8px 16px;
-                background-color: #f1f3f4;
-                border-radius: 16px;
-                transition: background-color 0.3s, color 0.3s;
-            }
-            .radio-button input:checked + span {
-                background-color: #1a73e8;
-                color: white;
-            }
-            button {
-                background-color: #1a73e8;
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                font-size: 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: background-color 0.3s;
-            }
-            button:hover {
-                background-color: #1765cc;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="sidebar">
-                <h1>Route Finder</h1>
-                <form action="/find_route" method="post">
-                    <label for="start_address">Địa chỉ bắt đầu:</label>
-                    <input type="text" name="start_address" id="start_address" required placeholder="Nhập địa chỉ bắt đầu">
+        self.route_info_text = tk.Text(self.info_frame, height=5, font=("Arial", 12))
+        self.route_info_text.pack(fill=tk.X, padx=5)
+        self.route_info_text.config(state=tk.DISABLED)
+        # Connect matplotlib events to Tkinter
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.pack(in_= self.main_frame,side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.fig.canvas.mpl_connect("button_press_event", self.on_click)
+        self.plot_graph()
+        self.root.mainloop()
+    def show_all_nodes(self):
+        """Show all nodes and edges in the graph."""
+        self.ax.clear()
+        self.ax.imshow(self.background_image, extent=[105.8112969, 105.8247374, 21.0234381, 21.0311603], aspect='auto', zorder=0)
+        ox.plot_graph(graph, ax=self.ax, show=False, close=False, bgcolor="lightgray", edge_color='blue', node_size=30, node_color='red', edge_linewidth=2)
+        self.canvas.draw()
+    def change_algorithm(self, algorithm):
+        """Change the selected algorithm."""
+        previous_algorithm = self.selected_algorithm
+        self.selected_algorithm = algorithm
+        messagebox.showinfo("Algorithm Changed", f"Algorithm changed from {previous_algorithm} to {algorithm}")
+    def plot_graph(self):
+        """Plot the graph in the matplotlib figure."""
+        self.ax.clear()
+        self.ax.imshow(self.background_image, extent=[105.8112969, 105.8247374, 21.0234381, 21.0311603], aspect='auto', zorder=0)
+        ox.plot_graph(graph, ax=self.ax, show=False, close=False, bgcolor="lightgray", edge_color='none', node_size=0)
+        for algorithm, route in self.routes.items():
+            ox.plot_graph_route(
+                graph,
+                route,
+                route_color=self.algorithm_color[algorithm],
+                route_linewidth=3,
+                bgcolor="lightgray",
+                ax=self.ax,
+                show=False,
+                close=False,
+            )
+        # Add legend
+        handles = [Line2D([0], [0], color=color, lw=2, label=algorithm)
+                   for algorithm, color in self.algorithm_color.items()]
+        self.ax.legend(handles=handles, loc="upper right")
 
-                    <label for="end_address">Địa chỉ kết thúc:</label>
-                    <input type="text" name="end_address" id="end_address" required placeholder="Nhập địa chỉ kết thúc">
+        # Plot start and end points
+        x_start, y_start = self.selected_points[0] if len(self.selected_points) > 0 else (None, None)
+        x_end, y_end = self.selected_points[1] if len(self.selected_points) > 1 else (None, None)
+        if self.start_node:
+            self.ax.plot([x_start, graph.nodes[self.start_node]['x']], [y_start, graph.nodes[self.start_node]['y']], c="purple", linestyle="--", linewidth=3)
+        if self.end_node:
+            self.ax.plot([x_end, graph.nodes[self.end_node]['x']], [y_end, graph.nodes[self.end_node]['y']], c="purple", linestyle="--", linewidth=3)
+        if x_start and y_start:
+            self.ax.scatter(x_start, y_start, c="green", s=50, zorder=5)
+        if x_end and y_end:
+            self.ax.scatter(x_end, y_end, c="blue", s=50, zorder=5)
+        self.canvas.draw()
 
-                    <label>Chọn thuật toán:</label>
-                    <div class="radio-group">
-                        <label class="radio-button">
-                            <input type="radio" name="algorithm" value="dijkstra" checked>
-                            <span>Dijkstra</span>
-                        </label>
-                        <label class="radio-button">
-                            <input type="radio" name="algorithm" value="astar">
-                            <span>A*</span>
-                        </label>
-                        <label class="radio-button">
-                            <input type="radio" name="algorithm" value="bfs">
-                            <span>BFS</span>
-                        </label>
-                        <label class="radio-button">
-                            <input type="radio" name="algorithm" value="dfs">
-                            <span>DFS</span>
-                        </label>
-                        <label class="radio-button">
-                            <input type="radio" name="algorithm" value="bellman_ford">
-                            <span>Bellman-Ford</span>
-                        </label>
-                    </div>
+    def on_click(self, event):
+        """Handle click events to capture coordinates."""
+        if event.xdata is None or event.ydata is None:
+            return  # Ignore clicks outside the grap
 
-                    <button type="submit">Tìm đường</button>
-                </form>
-            </div>
-            <div class="map-container" id="map">
-                <iframe src="{{ url_for('static', filename='giang_vo_map.html') }}" width="100%" height="600px" style="border:none;"></iframe>
-            </div>
+        # Add the selected node to the points
+        self.selected_points.append((event.xdata, event.ydata))
+        print(f"Selected points: {event.xdata}, {event.ydata}")
 
-        </div>
-    </body>
-    </html>
-    """
-    return render_template_string(html)
+        # Plot the selected node immediately
+        self.ax.scatter(event.xdata, event.ydata, c="blue", s=50, zorder=5)
+        self.canvas.draw()
 
-@app.route('/find_route', methods=['POST'])
-def find_route():
-    """
-    Xử lý tìm đường giữa hai địa chỉ.
-    """
-    start_address = request.form.get('start_address')
-    end_address = request.form.get('end_address')
-    algorithm = request.form.get('algorithm')
-
-    # Geocode các địa chỉ
-    start_point = geocode_address(start_address)
-    end_point = geocode_address(end_address)
-
-    nodes = list(G.nodes(data=True))
-    latitudes = [data['y'] for _, data in nodes] 
-    longitudes = [data['x'] for _, data in nodes]  
-
-    min_lat, max_lat = min(latitudes), max(latitudes)
-    min_lon, max_lon = min(longitudes), max(longitudes)
-    if not (min_lat <= start_point[0] <= max_lat and min_lon <= start_point[1] <= max_lon):
-        return f"Địa chỉ bắt đầu {start_address} nằm ngoài khu vực đồ thị."
-    if not (min_lat <= end_point[0] <= max_lat and min_lon <= end_point[1] <= max_lon):
-        return f"Địa chỉ kết thúc {end_address} nằm ngoài khu vực đồ thị."
-    try:
-        start_node = ox.distance.nearest_nodes(G, start_point[1], start_point[0])
-        end_node = ox.distance.nearest_nodes(G, end_point[1], end_point[0])
-
-        if algorithm == "dijkstra":
-            route = dijkstra_path(G, start_node, end_node)
-        elif algorithm == "astar":
-            route = astar_path(G, start_node, end_node)
-        elif algorithm == "bfs":
-            route = bfs_path(G, start_node, end_node)
-        elif algorithm == "dfs":
-            route = dfs_path(G, start_node, end_node)
-        elif algorithm == "bellman_ford":
-            route = bellman_ford_path(G, start_node, end_node)
+    def calculate_route(self):
+        """Calculate and display the shortest route."""
+        if len(self.selected_points) != 2:
+            messagebox.showwarning("Selection Error", "Please select two points before calculating.")
+            return
+        if self.selected_algorithm == "DFS" or self.selected_algorithm == "BFS":
+            start,_ = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k=1, heuristic= heuristic)
+            end,_ = nearest_node(graph, [self.selected_points[1][0], self.selected_points[1][1]], k=1, heuristic= heuristic)
+            self.start_node = start[0]
+            self.end_node = end[0]
+            if self.selected_algorithm == "DFS":
+                path = dfs(graph, self.start_node, self.end_node)
+            else:
+                path, _ = bfs(graph, self.start_node, self.end_node)
+            if path is None:
+                messagebox.showwarning("No Path", "No path found between the selected points.")
+                return
+            self.routes[self.selected_algorithm] = path
+            min_dis = sum(graph[path[i]][path[i + 1]][0].get('length') for i in range(len(path) - 1))
+            self.route_info.append(f"Algorithm: {self.selected_algorithm}, Distance: {min_dis} meters")
+            self.route_info_text.config(state=tk.NORMAL)
+            self.route_info_text.delete(1.0, tk.END)
+            self.route_info_text.insert(tk.END, "\n".join(self.route_info))
+            self.route_info_text.config(state=tk.DISABLED)
+            self.plot_graph()
+            return
         else:
-            return "Thuật toán không hợp lệ."
+            near_start, distance_start = nearest_node(graph, [self.selected_points[0][0], self.selected_points[0][1]], k= 3, heuristic= heuristic)
+            near_end, distance_end = nearest_node(graph, [self.selected_points[1][0], self.selected_points[1][1]], k= 3, heuristic= heuristic)
+            min_i, min_j = None, None
+            dis_min = float('inf')
+            min_path = None
+            check = False
+            if self.selected_algorithm == "A*":
+                for id1, i in enumerate(near_start):
+                    for id2, j in enumerate(near_end):
+                        path, dis = a_star(graph, i, j, heuristic= a_star.heuristic)
+                        if path is None:
+                            continue
+                        dis += (distance_start[id1] + distance_end[id2])
+                        if dis < dis_min:
+                            dis_min = dis
+                            min_i, min_j = i, j
+                            min_path = path
+                            check = True
+                if not check:
+                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    return
+            elif self.selected_algorithm == "Dijkstra":
+                for id1, i in enumerate(near_start):
+                    for id2, j in enumerate(near_end):
+                        path, dis = dijkstra(graph, i, j)
+                        if path is None:
+                            continue
+                        dis += (distance_start[id1] + distance_end[id2])
+                        if dis < dis_min:
+                            dis_min = dis
+                            min_i, min_j = i, j
+                            min_path = path
+                            check = True
+                if not check:
+                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    return
+            elif self.selected_algorithm == "Bellman-Ford":
+                for id1, i in enumerate(near_start):
+                    for id2, j in enumerate(near_end):
+                        path, dis = bellman_ford(graph, i, j)
+                        if path is None:
+                            continue
+                        dis += (distance_start[id1] + distance_end[id2])
+                        if dis < dis_min:
+                            dis_min = dis
+                            min_i, min_j = i, j
+                            min_path = path
+                            check = True
+                if not check:
+                    messagebox.showwarning("No Path", "No path found between the selected points.")
+                    return
+            self.start_node = min_i
+            self.end_node = min_j
+            self.routes[self.selected_algorithm] = min_path
+            self.route_info.append(f"Algorithm: {self.selected_algorithm}, Distance: {dis_min} meters")
+            self.route_info_text.config(state=tk.NORMAL)
+            self.route_info_text.delete(1.0, tk.END)
+            self.route_info_text.insert(tk.END, "\n".join(self.route_info))
+            self.route_info_text.config(state=tk.DISABLED)
+            self.plot_graph()
+    def reset_selection(self):
+        """Reset the map and clear selections."""
+        self.selected_points = []
+        self.start_node = None
+        self.end_node = None
+        self.routes = {}
+        self.route_info = []
+        self.info_label.config(text="Select two points on the map")
+        self.route_info_text.config(state=tk.NORMAL)
+        self.route_info_text.delete(1.0, tk.END)
+        self.route_info_text.config(state=tk.DISABLED)
+        self.plot_graph()  # Redraw the map without the route
 
-        route_length = sum(G[u][v][0]['length'] for u, v in zip(route[:-1], route[1:]))
 
-        route_map = folium.Map(location=start_point, zoom_start=14)
+# Step 3: Run the application
+root = tk.Tk()
+app = MapApp(root)
 
-        folium.Marker(start_point, popup="Start: {}".format(start_address), icon=folium.Icon(color='green')).add_to(route_map)
-        folium.Marker(end_point, popup="End: {}".format(end_address), icon=folium.Icon(color='red')).add_to(route_map)
-
-
-        start_node_coords = (G.nodes[start_node]['y'], G.nodes[start_node]['x'])
-        folium.PolyLine([start_point, start_node_coords], color='#1a73e8', weight=3, opacity=0.6, dash_array='5,5').add_to(route_map)
-
-
-        end_node_coords = (G.nodes[end_node]['y'], G.nodes[end_node]['x'])
-        folium.PolyLine([end_point, end_node_coords], color='#1a73e8', weight=3, opacity=0.6, dash_array='5,5').add_to(route_map)
-
-    
-        route_coords = [(G.nodes[node]['y'], G.nodes[node]['x']) for node in route]
-        folium.PolyLine(route_coords, color="#1a73e8", weight=5, opacity=0.7).add_to(route_map)
-
-    
-        route_map.save("route_map.html")
-
-
-        return render_template_string("""
-        <!DOCTYPE html>
-        <html lang="vi">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Route Result</title>
-            <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-            <style>
-                body {
-                    font-family: 'Roboto', Arial, sans-serif;
-                    margin: 0;
-                    padding: 0;
-                    color: #202124;
-                    display: flex;
-                    height: 100vh;
-                }
-                .sidebar {
-                    width: 300px;
-                    background-color: white;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                    padding: 20px;
-                    overflow-y: auto;
-                }
-                .map-container {
-                    flex-grow: 1;
-                }
-                h1 {
-                    color: #1a73e8;
-                    font-size: 24px;
-                    margin-bottom: 20px;
-                }
-                p {
-                    margin-bottom: 10px;
-                }
-                .result-item {
-                    background-color: #f1f3f4;
-                    border-radius: 4px;
-                    padding: 10px;
-                    margin-bottom: 10px;
-                }
-                iframe {
-                    border: none;
-                    width: 100%;
-                    height: 100%;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="sidebar">
-                <h1>Kết quả tìm đường</h1>
-                <div class="result-item">
-                    <p><strong>Từ:</strong> {{ start_address }}</p>
-                    <p><strong>Đến:</strong> {{ end_address }}</p>
-                </div>
-                <div class="result-item">
-                    <p><strong>Thuật toán:</strong> {{ algorithm.upper() }}</p>
-                    <p><strong>Độ dài tuyến đường:</strong> {{ "%.2f"|format(route_length / 1000) }} km</p>
-                </div>
-            </div>
-            <div class="map-container" id = "map">
-                # <iframe src="/view_map"></iframe>
-            </div>
-        </body>
-        </html>
-        """, start_address=start_address, end_address=end_address, algorithm=algorithm, route_length=route_length)
-
-    except Exception as e:
-        return f"Lỗi khi tìm đường: {e}"
-
-@app.route('/view_map')
-def view_map():
-    """
-    Hiển thị bản đồ đã lưu.
-    """
-    try:
-        with open("route_map.html", "r", encoding="utf-8") as file:
-            content = file.read()
-        return content
-    except Exception as e:
-        return f"Lỗi khi load bản đồ: {e}"
-
-if __name__ == '__main__':
-    app.run(debug=True)

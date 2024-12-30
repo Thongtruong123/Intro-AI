@@ -10,7 +10,6 @@ def bellman_ford(graph, start_node, end_node):
                     distance[neighbor] = distance[node] + weight
                     previous_nodes[neighbor] = node
 
-
     for node in graph.nodes:
         for neighbor, weight in graph[node]:
             if distance[node] + weight < distance[neighbor]:
