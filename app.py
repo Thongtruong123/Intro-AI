@@ -56,7 +56,7 @@ class MapApp:
         self.algorithm_var = tk.StringVar(self.sidebar)
         self.algorithm_var.set(self.selected_algorithm)
         self.sidebar.option_add("*TMenubutton*Font", ("Arial", 14))
-        self.algorithm_dropdown = tk.OptionMenu(self.sidebar, self.algorithm_var, "A*", "BFS", "DFS", "Dijkstra", "Greedy", "SPFA", command = self.change_algorithm)
+        self.algorithm_dropdown = tk.OptionMenu(self.sidebar, self.algorithm_var, "A*", "BFS", "DFS", "Dijkstra", "Bellman-Ford", command = self.change_algorithm)
         self.algorithm_dropdown.pack(pady = 5, fill=tk.X)
         # Create buttons
         self.quit_button = tk.Button(self.sidebar, text="Exit", command=self.root.quit, bg = "red", fg = "white", font = ("Arial", 14))
@@ -246,4 +246,3 @@ class MapApp:
 # Step 3: Run the application
 root = tk.Tk()
 app = MapApp(root)
-
